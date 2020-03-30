@@ -1,0 +1,154 @@
+---
+title: "Loops HW"
+author: "AMANDA LIU"
+date: "2017年10月16日"
+output: html_document
+---
+#Amanda Liu
+#PID:730042603
+
+```{r}
+library("tidyverse")
+library("stringr")
+```
+
+Exercises
+21.2.1 #1,2, 3ac 21.5.3 #1-4
+
+21.2.1
+#1
+1.mean of every column in mtcars.
+```{r}
+means <- vector("double", ncol(mtcars))
+names(means) <- names(mtcars)
+for (i in names(mtcars)) {
+  means[i] <- mean(mtcars[[i]])
+}
+means
+```
+
+2.Determine the type of each column in nycflights13::flights.
+```{r}
+data("flights", package = "nycflights13")
+type <- vector("list", ncol(flights))
+names(type) <- names(flights)
+for (i in names(flights)) {
+  type[[i]] <- class(flights[[i]])
+}
+type
+```
+
+3.Compute the number of unique values in each column of iris.
+```{r}
+data(iris)
+uniq_value <- vector("double", ncol(iris))
+names(uniq_value) <- names(iris)
+for (i in names(iris)) {
+  uniq_value[i] <- length(unique(iris[[i]]))
+}
+uniq_value
+```
+
+4.Generate 10 random normals for each of. Think about the output, sequence, and body before you start writing the loop.
+```{r}
+n <- 10
+mu <- c(-10, 0, 10, 100)
+normal <- vector("list", length(mu))
+for (i in seq_along(normal)) {
+  normal[[i]] <- rnorm(n, mean = mu[i])
+}
+normal
+```
+
+
+#2
+Eliminate the for loop in each of the following examples by taking advantage of an existing function that works with vectors:
+```{r}
+out <- ""
+for (x in letters) {
+  out <- stringr::str_c(out, x)
+}
+out
+
+#changed to
+stringr::str_c(letters, collapse = "")
+
+```
+
+```{r}
+x <- sample(100)
+sd <- 0
+for (i in seq_along(x)) {
+  sd <- sd + (x[i] - mean(x)) ^ 2
+}
+sd <- sqrt(sd / (length(x) - 1))
+sd
+
+#changed to
+sd(x)
+```
+```{r}
+x <- runif(100)
+out <- vector("numeric", length(x))
+out[1] <- x[1]
+for (i in 2:length(x)) {
+  out[i] <- out[i - 1] + x[i]
+}
+out
+
+#changed to
+all.equal(cumsum(x),out)
+```
+
+#3
+a.Write a for loop that prints() the lyrics to the children’s song “Alice the camel”.
+c.Convert the song “99 bottles of beer on the wall” to a function. Generalise to any number of any vessel containing any liquid on any surface.
+
+21.5.3 
+#1
+```{r}
+#1
+map_dbl(mtcars, mean)
+
+#2
+map(nycflights13::flights, class)
+
+#3
+map_int(iris, ~ length(unique(.)))
+
+#4
+map(c(-10, 0, 10, 100), rnorm, n = 10)
+```
+
+#2
+How can you create a single vector that for each column in a data frame indicates whether or not it’s a factor?
+```
+We can use map_lgl and is.factor to determine whether or not it's a factor.
+```
+```{r}
+map_lgl(mtcars, is.factor)
+```
+
+#3
+What happens when you use the map functions on vectors that aren’t lists? What does map(1:5, runif) do? Why?
+```{r}
+map(1:5, runif)
+```
+```
+"map" will be applied to every element in the vector.
+```
+#4
+What does map(-2:2, rnorm, n = 5) do? Why? What does map_dbl(-2:2, rnorm, n = 5) do? Why?
+```{r}
+map(-2:2, rnorm, n = 5)
+```
+```
+The sample size is 5 and it is from the normal distribution with means(-2,-1,0,1,2).
+It returns each with a vector of length 5.
+```
+```
+map_dbl(-2:2, rnorm, n = 5)
+```
+```
+map_dbl will be an error. 
+```

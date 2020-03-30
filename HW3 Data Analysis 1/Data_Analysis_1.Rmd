@@ -1,0 +1,238 @@
+---
+title: "Data Analysis 1: dplyr and UNC departments"
+author: "STOR 320"
+output: html_document
+---
+
+# Amanda Liu PID: 730042603
+Due **Monday 9/11/17** before the start of class. 
+
+**You are to work alone on this assignment. (We will discuss.)**
+
+Universities are typically opaque, bureaucratic institutions. Many public schools such as the University of North Carolina system make [data about university employees publically](http://www.newsobserver.com/news/databases/public-salaries/) available. Using this dataset what can we learn about the dynamics of the university system?
+
+
+## dplyr
+
+To download the RMarkdown file for this assignment, right-click on [.Rmd file for this assignment](https://www.dropbox.com/s/h18er3ap1v7w29k/Data%20Analysis%201.Rmd?dl=0), and select *open link in new tab*. Then proceed to download by saving the file to your *Working Directory*
+
+The best way to to learn the dplyr package is to just use it a lot. Read through the following dplyr tutorial the complete questions in this .Rmd document. I suggest doing the coding in an R script then putting the answers into this documents.
+
+## Instructions
+- Please attempt these questions by Monday, September 11 at 4:40.  The graded version will be turned in on September 13, but it is essential that you make a serious attempt at Questions 1-10 by Monday.
+- use `dplyr` functions to answer the following questions (base R will not be given credit) 
+- submit a zipped folder containing the .Rmd file and the associated .html file to Sakai.
+
+- When you are given directions, **return** something means just print it out. Similarly for questions **What is ...** just print out the answer.
+
+Q: Return the sum of the first 10 positive integers?
+
+Q: What is the sum of the first 10 positive integers?
+```{r}
+sum(1:10)
+```
+
+- **create** or **save** means save a variable
+
+Create a variable `x` with the sum of the first 10 positive integers.
+```{r}
+x <- sum(1:10)
+```
+
+
+
+# The data
+
+First download the data set from Ryan Thornburg's website. You may want to set `cache=TRUE` for this chunk so you don't have to download the data set every time you run the script.
+```{r setup, message=FALSE, cache=FALSE}
+library(tidyverse)
+library(lubridate)
+
+# Load the UNC departments data
+data <- read_csv(url("http://ryanthornburg.com/wp-content/uploads/2015/05/UNC_Salares_NandO_2015-05-06.csv"))
+```
+
+Take a first look at the data
+```{r}
+colnames(data)
+
+str(data)
+
+head(data)
+```
+
+# Assignment
+
+
+## Question 1
+Return a data frame with columns: name, dept, age,totalsal 
+```{r}
+select(data, name, dept, age, totalsal)
+```
+
+Return a data frame with columns: statesal, nonstsal,totalsal using one of the `select_helpers` functions. If needed, google 'select_helpers in R'.
+```{r}
+select(data, contains("sal"))
+```
+
+## Question 2 
+Rename the `fte` column to `fulltime`. Make sure this change is saved (i.e. `data <- ...`).
+```{r}
+data <- rename(data, fulltime = fte)
+```
+
+## Question 3 
+
+What is the mean salary in the Neurosurgery department?
+
+```{r}
+group_by(data, dept) %>%summarise(mean(totalsal)) %>%filter(dept == "Neurosurgery")
+```
+
+
+Return a data frame with employee's in the Neurosurgery department making more than $500,000. Why might these professors be so well paid? 
+```{r}
+filter(data, dept == "Neurosurgery", totalsal >= 500000)
+
+```
+```
+First, they are all full-time. And in general, people who works in neurosurgery earn a lot.
+```
+## Question 4 
+What is the total amount that full time Dermatology employees get paid?
+
+
+```{r}
+filter(data, dept == "Dermatology", fulltime == 1)$totalsal %>% sum
+```
+
+
+## Question 5
+
+Create a data frame called radio_dept whose rows are the employees from the Radiology department. 
+
+- include only the following columns: name, position, age, nonstsal, totalsal. 
+- order the employees by salary
+
+First without pipes
+
+```{r }
+radio_dept <- arrange(select(filter(data, dept == "Radiology"), name, position, age, nonstsal, totalsal), desc(totalsal))
+```
+
+
+Next with pipes
+```{r }
+radio_dept <- filter(data, dept == "Radiology") %>% select(name, position, age, nonstsal, totalsal) %>% arrange(desc(totalsal))
+```
+
+
+Make a histogram of Radiology salaries
+```{r }
+ggplot(radio_dept) + geom_histogram(mapping = aes(x = totalsal),bins = 30) + xlab("Total salary")+ ylab("#Number") + ggtitle("Radiology department salaries")
+```
+
+
+
+## Question 6
+
+Create a data frame called `dept_summary`  whose rows are the departments and  whose columns are: department size, mean department salary, median department salary, and maximum salary (using totalsal for salary). 
+
+```{r }
+dept_summary <- group_by(data, dept) %>%summarise(dept_size = n(), mean_dept_totalsal = mean(totalsal), med_dept_totalsal = median(totalsal), max_dept_totalsal = max(totalsal))
+```
+
+Order the departments by highest mean salary and print the 10 highest paid departments. 
+
+
+```{r }
+dept_summary %>%arrange(desc(mean_dept_totalsal)) %>%select(dept)
+```
+
+Order the departments by highest median salary and print the 10 highest paid departments. 
+
+```{r }
+dept_summary %>%arrange(desc(med_dept_totalsal)) %>%select(dept)
+```
+
+Why do these lists differ? If you were asked for the top 10 best paid departments at UNC which summary would you choose and why?
+
+```
+The lists differ because mean is different from median in general. Mean calculates the average of numbers and median refers to the midpoint of a group of data. In my opinion, median is more suitable to represent the best paid departments because the mean can more easily be influenced by the outliers.
+```
+
+## Question 7
+How many departments have at least 10 employees?
+```{r }
+count(dept_summary, dept_size >= 10)
+```
+
+
+## Question 8
+Which department hired the most people in 2010? Hint: you probably have to modify `hiredate`.
+```{r }
+mutate(data, hiredate = parse_datetime(hiredate, "%Y%m%d")) %>% filter(year(hiredate) == 2010) %>%group_by(dept) %>%summarise(N = n()) %>%arrange(desc(N))
+```
+```
+In 2010, the department of medicine hired the most people.
+```
+
+## Question 9
+Make a list of all the department names and sort this list alphabetically. What is the 42nd department in this list?
+```{r }
+select(data, dept) %>% distinct(dept) %>% arrange(dept) %>% slice()
+select(data, dept) %>% distinct(dept) %>% arrange(dept) %>% slice(42)
+```
+```
+The 42nd department in this list is "Soccer".
+```
+
+
+## Question 10
+Plot number of people hired by the CS dept per year vs. year
+```{r }
+hires <- filter(data, dept %in% c("Computer Science", "Statistics and Operations Res", "Mathematics", "Biostatistics", "School of Info & Libr Science", "Physics-Astronomy")) %>%mutate(hiredate = parse_datetime(hiredate, "%Y%m%d"),yr = year(hiredate)) %>% group_by(yr, dept) %>%summarise(N = n()) %>%ungroup
+
+filter(hires, dept == "Computer Science") %>%ggplot(aes(x = yr, y = N)) + theme_minimal() + geom_point(color = "#660066") + geom_line(color = "#FF66FF") + ylab("# of hired") + xlab("Year") + ggtitle("# of hired in the CS department")
+
+```
+
+
+Now add STOR, Math, Biostatistics, SILS and Physics to the above plot
+```{r }
+ggplot(hires, aes(x = yr, y = N, color = dept)) + theme_minimal() +
+  geom_point()+ geom_line(alpha = 0.5 ) + scale_color_manual(name = "", values = c("#00FF00", "#FF66FF", "#3399CC", "#9933CC", "#FFFF00", "#333333")) + ylab("# of hired") + xlab("Year") + ggtitle("# of hired, different departments")
+```
+
+
+# Open question
+
+Examine the relationship between age and salary at UNC. You can interpret this however you like e.g.
+
+- age can mean number of years employed at the university
+- compare and contrast different departments
+
+Requirements
+
+- hand in a separate .Rmd document 
+    - load the data with read_csv(url(...)) like this script
+- make 3 figures
+    - a figure can be a visualization, print out of a data frame that you can created, the results of a statistical model/test (e.g. linear regression)
+- display all code used
+    - code should be commented
+    - if you have a lot of functions you can put them in a separate .R script
+- describe each figure
+    - what is the figure (figure blah is a plot of foo vs. bar)
+    - what is the upshot of the figure (figure blah shows that there is a strong relationship between foo and bar)
+- write an explanation of your findings
+    - a couple paragraphs
+    - use proper grammar
+    - your findings should be clear
+
+# hints
+
+Every question can be answered using: filter, arrange, select, mutate, summarize and group_by functions.
+
+- here are two more dplyr tutorials: https://rpubs.com/justmarkham/dplyr-tutorial and https://www.coursera.org/learn/data-cleaning/home/week/3
+
+- fte means full time employee

@@ -1,0 +1,210 @@
+---
+title: "Diamonds"
+author: "AMANDA LIU"
+date: "2017年11月6日"
+output: html_document
+---
+
+
+```{r}
+library(tidyverse)
+library(modelr)
+library(hexbin)
+options(na.action = na.warn)
+data(diamonds)
+```
+
+Your client, the world’s only ethical diamond miner has asked you to build a model predicting diamond prices based on the four C’s: Carats (weight), Cut, Color, Clarity. You recognize that diamonds are a hoax, but a gig’s a gig so you have accepted the contract.
+
+1.	Recall that the dataset diamonds is part of the tidyverse package and use ggplot to examine the relationships between price and cut, color, and clarity, respectively. Since those three C’s are categorical, geom_boxplot might be handy.
+a.	Price versus cut
+b.	Price versus clarity
+c.	Price versus color
+d.	Note any surprises or counterintuitive results.
+
+```{r}
+#a
+ggplot(diamonds, aes(cut, price)) + geom_boxplot()
+
+#b
+ggplot(diamonds, aes(clarity, price)) + geom_boxplot()
+
+#c
+ggplot(diamonds, aes(color, price)) + geom_boxplot()
+
+```
+```
+#d
+From the plot, we can see that generally lower quality diamonds often have higher prices which is very suprising.
+```
+2.	Carat is numerical, so use a different geom, geom_point to view Price versus Carat. There is clearly a relationship, but it is hard to see because there are so many observations in the data-set, over 50,000. We will use geom_hex to cram more observations into each plotted point.
+a.	  Do ‘dia <- ggplot(diamonds, aes(carat, price))’
+b.	Now try ‘dia + geom_hex()’ and ‘dia + geom_hes(bins = 10)’. Note that the result is a heat map with a default number of bins.
+c.	When we chose “bins = 10”, we got a lot more than 10 bins. What happened?
+d.	Mess with the number of bins until you have a nice readable plot.
+e.	Also, notice the syntax. We assigned a function to the variable dia and then used it as the function so we didn’t have to keep typing/copying it.
+```{r}
+#a
+dia <- ggplot(diamonds, aes(carat, price))
+
+#b
+dia + geom_hex()
+dia + geom_hex(bins = 10)
+
+#d
+dia + geom_hex(bins = 20)
+dia + geom_hex(bins = 30)
+dia + geom_hex(bins = 40)
+dia + geom_hex(bins = 50)
+```
+```
+#c
+The "bins" is the numeric vector giving number of bins in both vertical and horizontal directions. 
+"bins= 10" gives 10 bins in both vertical and horizontal directions.
+In addition, it also contains many outliers in the plot.
+```
+
+3.	It turns out all but 0.3% of the diamonds are below 2 carats, so filter out all the diamonds that are above that size and look at Price versus carat again. Call the new data-set dia_red (diamonds reduced) or something similar.
+a.	We can see that the relationship is not linear. Hadley suggests that we look at a double log-transform of the data, so define log_pr and log_car to be  of price and carat, respectively and add them to the data set. In practice, we might try several transforms, but data involving monetary amounts or populations often exhibit exponential characteristics, so a log transformation is reasonable.
+The command for obtaining  of price is ‘log2(price)’. Note that the base of the logarithm is unimportant. Both e and 10 are common choices for the base.
+b.	Plot the new variables and see if a linear model appears plausible. Don’t forget our new geom_hex friend if the plot looks too busy. If plausible, fit a linear model minimizing the usual  norm on the residuals.
+```{r}
+dia_red <- filter(diamonds, carat <= 2)
+dia_red
+
+#a
+dia_2 <- diamonds %>% filter(carat <= 2) %>% mutate(log_pr = log2(price), log_car = log2(carat))
+dia_2
+
+#b
+ggplot(dia_2, aes(log_car, log_pr)) + geom_hex(bins = 50)
+
+lm_dia2 <- lm(log_pr~log_car, data = dia_2)
+lm_dia2
+```
+
+c.	We could look at the line with our log-transformed scatterplot but it is more interesting to see the un-logged curve with the original data.
+i.	Use modelr to create a one-dimensional ‘grid’ of 20 carat values spread evenly along the data-set values of carat in dia_red. In fact, the command is below, but say what each line is doing:
+```{r}
+		grid <- dia_2 %>% 
+  		data_grid(carat = seq_range(carat, 20)) %>% 
+ 			mutate(log_car = log2(carat)) %>% 
+ 			add_predictions(lm_dia2, "log_pr") %>% 
+  		mutate(price = 2 ^ log_pr)
+```
+```
+
+```
+ii.	Now repeat your plot of price versus carat from before Part (a) and use geom_line to to plot the curve. Here is the command, I apologize that it is called geom_line even though it is not a line. Explain to your partner what each line of the command is doing:
+```{r}
+ggplot(dia_2, aes(carat, price)) +
+  geom_hex(bins = 50) +
+  geom_line(data = grid, colour = "red", size = 1)
+```
+
+iii.	Since the residuals were minimized for the logged data, we should plot those residuals to see if a linear model was appropriate for the log-transformed data. Make a plot or two of the ‘log_resids’ and comment on it.
+```{r}
+dia_2 <- dia_2 %>% 
+  add_residuals(lm_dia2, "log_resid")
+
+ggplot(dia_2, aes(log_car, log_resid)) + 
+  geom_hex(bins = 50)
+
+plot(lm_dia2,which=1:2)
+```
+```
+```
+4.	Fitting the residuals – We can think of the ‘log_resid’ as the patterns left in the data after the linear dependence on log_car is removed. While the residuals should appear random as a function of carat, there is no reason they should be independent of the other three variables. 
+a.	Plot the residuals against each of cut, clarity, and color and comment on the results. Are the associations as expected? Explain.
+```{r}
+#a
+ggplot(dia_2, aes(cut, log_resid)) + geom_boxplot()
+ggplot(dia_2, aes(color, log_resid)) + geom_boxplot()
+ggplot(dia_2, aes(clarity, log_resid)) + geom_boxplot()
+```
+```
+The associations are as expected. As the quality of the diamond increases, it tends to become more relative to price. 
+```
+b.	Find the least squares fit of ‘log_pr’ against ‘log_car’ and the other three variables. (We are still using the reduced data set.)  So this model has one response and 4 predictors.
+c.	You can look at the summary of the model, but it is a mess. However, it is worth noting that we can explain 98.15% of the variation in price with these 4 variables. This is a significant achievement (pun intended).
+```{r}
+#b
+lm_dia2 <- lm(log_pr ~ log_car + color + cut + clarity, data = dia_2)
+
+#c
+summary(lm_dia2)
+```
+
+
+5.	Back to the full model with 4 predictors (log_car, cut, clarity, color), Make a plot of the residuals using ‘add_residuals’ and geom_hex. Things look ok, but there are some serious outliers. 
+```{r}
+dia_2 <- dia_2 %>% 
+  add_residuals(lm_dia2, "log_resid2")
+
+ggplot(dia_2, aes(log_car, log_resid2)) + 
+  geom_hex(bins = 50)
+```
+a.	Find the outliers that represent great buying or selling opportunities. (You don’t have to find the data points, just identify the right residuals.)
+```
+There are some diamonds with quite large residuals 
+```
+
+b.	If we bought the ‘underpriced’ diamonds for their indicated price and then sold them for a more average price (residual = 0), how much money would we expect to make.
+```{r}
+dia_2 %>% 
+filter(dia_2$log_resid2 < 0) %>%
+add_predictions(lm_dia2) %>%
+mutate(pred = (2 ^ pred)) %>%
+select(price, pred) %>%
+mutate(difference= pred - price) %>% 
+summarise(sum(difference))
+```
+
+
+Hopefully you can see why identifying outliers can be interesting for those motivated by money.
+
+c.	The textbook gives a great set of commands to actually find the mispriced diamonds. If we can find something consistent about them, we have found a financial opportunity.
+```{r}
+Opportunity <- dia_2 %>% 
+	 		filter(abs(log_resid2) > 1) %>% 
+	 		add_predictions(lm_dia2) %>% 
+	 		mutate(pred = round(2 ^ pred)) %>% 
+	 		select(price, pred, carat:table, x:z) %>% 
+	 		arrange(price)
+```
+Explain each line of this model and try to find a reason for mispricing.
+```
+# log(price/predictPrice) >1; find diamonds with indicated price higher than average price
+# get prediction
+# select and then rank from lowest to highest
+
+```
+Exercises
+ 
+1.	In the plot of log_pr vs log_car, there are some bright vertical strips. What is causing those?
+```
+The bright vertical strips mean that there are some variations on `log_pr` although there seems to be a linear relationship between `log_pr` and `log_car`.
+```
+
+2.	If, what does that say about the relationship between price and carat? (Use any resource. If anyone is a chemistry major, they may know off-hand).
+```
+They have a positive correlation. If carat is increased by 1%, it will cause an b1% increase in price.
+```
+3.	Does the final, full model do a good job of predicting diamond prices? Should your client trust it when buying diamonds or setting diamond prices? Give some justification for your answer.
+```{r}
+summary(lm_dia2)
+plot(lm_dia2)
+
+dia_2 %>% 
+  add_predictions(lm_dia2) %>%
+  add_residuals(lm_dia2) %>%
+  summarise(sq_err = sqrt(mean(resid^2)),
+            abs_err = mean(abs(resid)),
+            p975_err = quantile(resid, 0.975),
+            p025_err = quantile(resid, 0.025))
+```
+
+```
+From the plot, I think clients should trust it when buying diamonds because the full model is very good.
+```
+

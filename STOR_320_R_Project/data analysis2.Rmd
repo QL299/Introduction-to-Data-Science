@@ -1,0 +1,154 @@
+---
+title: "data analysis2"
+output: html_document
+--
+#Data Analysis - Regular Expressions
+#Amanda Liu
+
+
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(stringr) 
+library(htmlwidgets)
+words
+```
+
+1A
+```{r}
+library(stringr)
+str_view(words,"^q", match = T)
+```
+
+1B
+```{r}
+str_view(words,"j$", match = T)
+```
+
+1C
+```{r}
+words[str_length(words) == 3]
+```
+
+1D
+```{r}
+words[str_length(words)> 7 ]
+```
+
+2A
+```{r}
+str_view(words,"[ieaou]$", match = T)
+```
+
+2B
+```{r}
+str_view(words,"^ex[^e]", match = T)
+```
+
+3A
+```
+1. ? = {0,1}
+2. + = {1, }
+3. * = {0, }
+```
+
+3B
+```{r}
+str_view(words,"^[ieaou]{2}", match = T)
+```
+
+3C
+```{r}
+str_view(words,"[^ieaou]{3,}", match = T)
+```
+
+4A
+```{r}
+str_view(words,"^x|x$", match = T)
+```
+
+4B
+```{r}
+str_view(words,"^[^ieaou].*[ieaou]$", match = T)
+```
+
+4C
+```{r}
+a = str_detect(words, "a") & str_detect(words, "e") & str_detect(words, "i") & str_detect(words, "o") & str_detect(words, "u")
+words[which(a)]
+```
+
+4D
+```{r}
+vowels_ordered <- str_detect(words, "(.*)a+(.*)e+(.*)i+(.*)o+(.*)u+(.*)")
+words[vowels_ordered]
+```
+
+5.1
+```{r}
+colours <- c("^red$", "^orange$", "^yellow$", "^green$", "^blue$", "^purple$")
+colour_match <- str_c(colours, collapse = "|")
+colour_match
+str_detect("flickred",colour_match)
+```
+
+5.2.1
+```{r}
+firstwords <- str_split(sentences, boundary("word"), simplify = T)[,1]
+head(firstwords,20)
+```
+
+5.2.2
+```{r}
+a = str_split(sentences, boundary("word"), simplify = T)
+ing <- "ing$"
+matches <- str_subset(a, ing)
+head(matches,20)
+```
+
+6A
+```{r}
+res <- str_split(words, "")
+sordw <- sapply(res, function(x) {
+  temp = tail(x,1)
+  x[length(x)]  <- x[1]
+  x[1] <- temp
+  paste0(x,collapse = "")
+})
+head(sordw,10)
+```
+
+6B
+```{r}
+words[which(sordw == words)]
+```
+
+7.1
+```{r}
+str_split("apples, pears, and bananas",",\\s(and\\s)?"sum
+```
+
+7.2
+```
+Because boundary("word") is more advanced than " ", there are words seperated by "  " or other forms.
+```
+
+7.3
+```{r}
+str_split("apples, pears, and bananas","")
+```
+```
+It splits the string by each character in the string.
+```
+
+8
+```{r}
+allwords <- str_split(sentences,boundary("word"))
+allwords <- unlist(allwords)
+allwords <- tolower(allwords)
+tb = table(allwords)
+sort(tb,decreasing = T)[1:5]
+```
+
+
+
+

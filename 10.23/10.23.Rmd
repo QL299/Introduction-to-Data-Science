@@ -1,0 +1,201 @@
+---
+title: '10.23'
+author: "AMANDA LIU"
+date: "2017年10月23日"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(stringr)
+library(modelr)
+library(purrr)
+options(na.action = na.warn)
+```
+
+Reading
+Read the pdf-file t-test refresher that has been placed on the resources page of Sakai. Our brief discussion of t-tests will mostly consist of a couple of examples. If you remember t-tests well from STOR 155 or STOR 455, you can skip this reading.
+
+Exercises - Pleaes consider this assignment to be seriously graded
+Attempt to do as much of this assignment as you can by next monday with no help from others. Then we will talk about it briefly at the end of class to see how everyone is doing.
+
+1.A 
+One downside of the least-squares model is that it is sensitive to unusual values because the distance incorporates a squared term. Fit a linear model to the simulated data below, and visualise the results. Rerun a few times to generate different simulated datasets. What do you notice about the model?
+```{r}
+sim1a <- tibble(
+  x = rep(1:10, each = 3),
+  y = x * 2 + 8 + rt(length(x), df = 2)
+)
+sim1a
+
+sim1alm<-lm(y ~ x, data = sim1a)
+plot(sim1alm, which = 1:2)
+
+plot(sim1a$x,sim1a$y) 
+abline(sim1alm)
+```
+
+```
+It is a good fit for linear model.
+Sometime there are outliers in the data.
+```
+
+B
+Now use purrr or a for-loop to regenerate sim1a 100 times and make a scatterplot of all of the fitted models. Comment on the wide range of models that results. Why such a large range when the ‘true’ model is y=2x+8+noise?
+```{r}
+coef_x <- vector("double", 100)
+coef_y <- vector("double", 100)
+
+for (i in 1:100) {
+  sim1a <- tibble(
+  x = rep(1:10, each = 3),
+  y = x * 2 + 8 + rt(length(x), df = 2))
+  model <- lm(y~x, sim1a)
+  coef_x[i] <- model[[1]][2]
+  coef_y[i] <- model[[1]][1]
+}
+
+sim1a_100<- tibble(
+   x = rep(1:10, each = 300),
+  y = x * 2 + 8 + rt(length(x), df = 2)
+)
+
+linear_coe <- tibble(x = coef_x,y = coef_y)
+
+ggplot(sim1a_100, aes(x, y)) + geom_abline(data=linear_coe, aes(slope= x, intercept=y), alpha=0.05) +
+geom_point()
+
+ggplot(sim1a, aes(x,y)) + geom_abline(aes(intercept = y, slope = x),data = linear_coe, alpha = 0.04) +geom_point()
+```
+
+```
+There exist some outliers. 
+It is because the data are generated from a low-degrees of freedmom t-distribution.
+
+```
+
+2. One way to make linear models more robust is to use a different distance measure. For example, instead of root-mean-squared distance, you could use mean-absolute distance:
+
+```{r}
+make_prediction<- function(mod, data){
+mod[1]+data$x*mod[2]
+}
+measure_distance <- function(mod, data) {
+  diff <- data$y - make_prediction(mod, data)
+  mean(abs(diff))
+}
+measure_distance
+```
+
+
+A. Redo Exercise 1 with this metric for how good a fit our line is (100 regressions on 100 datasets). You will have to use `optim()’ to find the best-fitting model.
+```{r}
+intercept<- vector("double", 100)
+slope<- vector("double", 100)
+
+for(i in 1:100){
+sim1a_data <- tibble(
+  x = rep(1:10, each = 3),
+  y = x * 2 + 8 + rt(length(x), df = 2)
+)
+
+best_fit<-optim(c(2,8), measure_distance, data=sim1a_data)
+
+intercept[i]<-best_fit[[1]][1]
+slope[i]<-best_fit[[2]][1]
+}
+
+model <- tibble(x = slope, y = intercept)
+
+ggplot(model, aes(x,y)) + geom_point()
+
+
+
+```
+
+
+B. What do you notice about the range of models compared to the range in Exercise 1. How do you explain the results?
+```
+Range of this models is smaller but points are more scattered.
+Also there is no specific pattern in this model graph.
+```
+3. Get the time series data set salaries.csv and put it in your usual working directory.
+
+A
+Load the data set and have a look. It shows an employee’s salary as a function of number of years worked.
+```{r}
+data = read.csv("salaries.csv")
+
+plot(data$Year, data$Salary)
+```
+```
+It can be seen that Salary shows a positive relationship with Year, with increasing of Year the Salary is also increasing.
+```
+
+B
+Fit a linear model to the data set and look as summary(your_model) to see various summary statistics. All indications are that the model is a pretty good fit, but just to be sure, look at plot(your_model, which = 1:2) to see two important plots you may remember from a past statistics course.
+```{r}
+slr = lm(Salary ~ Year, data = data)
+summary(slr)
+```
+```
+The summary output shows the p values are all less than 0.05 indicating they are significant, and the R-squared is 0.9832 which is very close to 1, the fitness of model is quite good.
+```
+```{r}
+plot(slr, which = 1:2)
+
+```
+
+
+C
+Based on your answer to (B) what evidence do we have that the linear model is not appropriate?
+```
+From the results of part B, the normal qq plot shows there is no strong evidence against normality, but from the residuals plot, it can be seen that there is an obviously special curve in the plot, so it means that the linearity is not true which makes the model is not appropriate
+```
+
+D
+You may be aware that salaries, like most financial data, tend to grow exponentially over time. Use optim() and the sum-of-squares of residuals to fit a model of the form y = a*b^x to these data points. This will basically involve re-doing what we did in class for linear models but changing `model1()’ to be a new model that is exponential. In case it is helpful, here are the regression lecture commands in an R-script.
+```{r}
+ss = function(par) {
+  a = par[1]
+  b = par[2]
+  sum((a*b^data$Year - data$Salary)^2)
+}
+res = optim(c(0.5,0.5), ss)
+res
+
+
+ahat = res$par[1]
+bhat = res$par[2]
+
+```
+
+
+E
+This model has the same number of parameters as the linear model in Part (B) so both models are equally parsimonious. Were you able to improve on the sum-of-squares fit from Part (B)?
+```{r}
+ss(res$par)
+sum(residuals(slr)^2)
+
+```
+```
+Yes, the model in part D has a much lower sum of squars of residuals than model in part B, so it is improved.
+```
+
+F
+Plot the residuals for the model in Part (D). Which model is superior, the linear model or the exponential model? Explain.
+```{r}
+resids =  data$Salary - ahat*bhat^data$Year
+plot( ahat*bhat^data$Year, resids, ylab = "residauls", xlab = "fitted values")
+abline(h = 0, col = "red")
+
+```
+```{r}
+plot(data$Year, data$Salary)
+abline(slr, col = "red")
+lines(data$Year, ahat*bhat^data$Year, col = "blue")
+
+```
+```
+It can be seen that there is no special curve in the residuals plot of model in part D, and the spread of points do not change across x-axis, also the points are independent, so the exponential model is supperior, at last, we can use the following plot to make a conclusion, from the plot, it can be seen that the blue exponential line fits the points better than the red linear line.
+```

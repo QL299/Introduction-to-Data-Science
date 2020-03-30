@@ -1,0 +1,68 @@
+---
+title: "Untitled"
+author: "AMANDA LIU"
+date: "2017年12月1日"
+output: html_document
+---
+
+```{r}
+require(readr)
+require(dplyr)
+require(stringr)
+require(zipcode)
+require(tidyverse)
+require(lubridate)
+require(plotly)
+require(data.table)
+require(ggmap)
+library(plotly)
+library(highcharter)
+library(reshape2)
+nypd.vehicle <- read_csv("NYPD_Motor_Vehicle_Collisions.csv", col_names = T)
+summary(nypd.vehicle)
+```
+
+```{r}
+# 60 minute
+q5.1 <- nypd.vehicle %>%
+  group_by(TIME) %>%
+  summarise(n = n()) %>%
+  mutate(time = hms(TIME),
+         time = hour(time)*3600 + minute(time)*60 + second(time),
+         times = ceiling(time/3600),
+         time.end = time/3600,
+         origin = 00:00
+         )
+
+q5.interval <- q5.1 %>%
+  filter(times == time.end) %>%
+  union_all(q5.1 %>% top_n(1)) %>%
+  select(times, TIME)
+q5.interval <- q5.interval %>%
+  rename(begin.time = TIME) %>%
+  inner_join(
+    q5.interval %>%
+      rename(end.time = TIME) %>%
+  mutate(times = times - 1) 
+  )
+q5.2 <- q5.1 %>%
+  group_by(times) %>%
+  summarise(n = sum(n)) %>%
+  inner_join(q5.interval) %>%
+  arrange(-n) %>% 
+  mutate(happn.times = n) %>%
+  select(begin.time, end.time, happn.times) %>%
+  mutate(time.interval = paste0(begin.time, "->", end.time)) %>%
+  arrange(begin.time)
+
+knitr::kable(q5.2, caption = "Most frequent 1-hour intervals for collisions to occur")
+
+ggplot(data = q5.2,
+       aes(x = seq(0,23,1), y =  happn.times, fill = time.interval)) +
+   geom_col(position = "stack") +
+  ggtitle("Time Interval of the collisions happened") + xlab("Time in hours") + ylab("Number of collisions")+
+    theme(axis.text.x  = element_text(angle = 0),
+        text = element_text(hjust=0.5, vjust = 1, size = 10, face = "bold"),
+        legend.position="none")
+```
+

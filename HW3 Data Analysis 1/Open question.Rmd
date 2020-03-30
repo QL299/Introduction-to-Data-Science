@@ -1,0 +1,71 @@
+---
+title: "Open Question"
+output: html_document
+---
+
+# Amanda Liu PID:730042603
+# the data
+```{r setup, message=FALSE, cache=FALSE}
+library(tidyverse)
+library(lubridate)
+
+# Load the UNC departments data
+data <- read_csv(url("http://ryanthornburg.com/wp-content/uploads/2015/05/UNC_Salares_NandO_2015-05-06.csv"))
+```
+
+# Open question
+
+Examine the relationship between age and salary at UNC. You can interpret this however you like e.g.
+
+- age can mean number of years employed at the university
+- compare and contrast different departments
+```{r}
+age_salary <- select(data, name, dept, age, totalsal)
+ggplot(age_salary)+geom_point(mapping = aes(x = age, y = totalsal)) + geom_smooth(mapping = aes(x = age, y = totalsal))
+```
+```
+This plot is a relationship between age and totalsal.From this data, we can see that most people who get better salary are between 30 years old and 70 years old.
+```
+
+```{r}
+age_meansalary <- group_by(age_salary,age)%>%summarise(meansalary = mean(totalsal, na.rm = TRUE))
+ggplot(age_meansalary,mapping = aes(x = age, y = meansalary)) + geom_point()+geom_smooth()
+```
+```
+This plot is a relationship between age and mean of totalsal.From this data, we can see that most people who get better salary are between 60 years old and 75 years old, which shows more directly than the plot of totalsal. Mean calculates the average. And the general trend is that with the increasing of ages, the salary also increases.
+```
+```{r}
+age_mediansalary <-group_by(age_salary,age)%>%summarise(mediansalary = median(totalsal, na.rm = TRUE))
+ggplot(age_mediansalary)+geom_point(mapping=aes(x=age,y=mediansalary))+geom_smooth(mapping=aes(x=age,y=mediansalary))
+```
+```
+This plot is a relationship between age and median of totalsal.From this data, we can see that most people who get better salary are between 60 years old and 75 years old, which shows more directly than the plot of totalsal. The median represents the midpt. We can also find that the mean and median are quite similar which shows that the salary does not have too much outliers and is quite similar. And the general trend is that with the increasing of ages, the salary also increases.
+```
+
+Requirements
+
+- hand in a separate .Rmd document 
+    - load the data with read_csv(url(...)) like this script
+- make 3 figures
+    - a figure can be a visualization, print out of a data frame that you can created, the results of a statistical model/test (e.g. linear regression)
+- display all code used
+    - code should be commented
+    - if you have a lot of functions you can put them in a separate .R script
+- describe each figure
+    - what is the figure (figure blah is a plot of foo vs. bar)
+    - what is the upshot of the figure (figure blah shows that there is a strong relationship between foo and bar)
+- write an explanation of your findings
+    - a couple paragraphs
+    - use proper grammar
+    - your findings should be clear
+
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+group_by(data, dept) %>%filter(dept == "Surgery")
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

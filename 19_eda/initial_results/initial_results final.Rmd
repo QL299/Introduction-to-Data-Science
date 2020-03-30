@@ -1,0 +1,189 @@
+---
+title: "initial_results"
+author: "Group 19"
+date: "2017年11月15日"
+output: html_document
+---
+
+Have some form of initial results. This could be a .Rmd document with a couple plots or .R script with a shiny app. The initial results should be short and to the point. Put the initial results into a folder called **initial_results**.
+
+```{r}
+require(readr)
+require(dplyr)
+require(stringr)
+require(zipcode)
+require(tidyverse)
+require(shiny)
+nypd.vechicle <- read_csv("NYPD_Motor_Vehicle_Collisions.csv", col_names = T)
+summary(nypd.vechicle)
+```
+
+#Q1
+What are the most dangerous/safe intersections in NYC?
+```{r}
+colnames(nypd.vechicle) <- str_replace_all(colnames(nypd.vechicle), " ", "_")
+q1 <- nypd.vechicle %>% 
+  mutate(num = 1,
+         Num_Injured = NUMBER_OF_PERSONS_INJURED + NUMBER_OF_PEDESTRIANS_INJURED + NUMBER_OF_CYCLIST_INJURED + NUMBER_OF_MOTORIST_INJURED,
+         Num_Killed = NUMBER_OF_PERSONS_KILLED + NUMBER_OF_PEDESTRIANS_KILLED + NUMBER_OF_CYCLIST_KILLED + NUMBER_OF_MOTORIST_KILLED
+         ) %>%
+  filter(!is.na(CROSS_STREET_NAME)) %>%
+  group_by(CROSS_STREET_NAME) %>%
+  summarise(count = n(), 
+            Num_Injured = sum(Num_Injured),
+            Num_Killed = sum(Num_Killed))
+
+knitr::kable(q1[q1$count == max(q1$count), ], 
+             caption = "most dangerous NYC intersection")
+knitr::kable(q1[q1$Num_Injured == max(q1$Num_Injured), ], 
+             caption = "most dangerous NYC intersection")
+knitr::kable(q1[q1$Num_Killed == max(q1$Num_Killed), ], 
+             caption = "most dangerous NYC intersection")
+
+safe <- q1[q1$count == min(q1$count) & q1$Num_Killed == 0 &
+              q1$Num_Injured == 0,]
+knitr::kable(head(safe), caption = "safest NYC intersection")
+
+ggplot(data = q1 %>% arrange(-count) %>% top_n(5,count) %>% 
+         gather("count", "Num_Injured", "Num_Killed",
+                                                             key = Type, value = Num),
+       aes(x = CROSS_STREET_NAME, y =  Num, fill = Type)) +
+   geom_col(position = "dodge") +
+  ggtitle("Most dangerous NYC intersection") +
+  theme(axis.text.x  = element_text(angle = 45),
+        text = element_text(size = 15, hjust=1.05, vjust = 1.1, face = "bold"))
+
+ggplot(data = q1 %>% arrange(count)  %>% head(5) %>% 
+         gather("count", "Num_Injured", "Num_Killed",
+                                                             key = Type, value = Num),
+       aes(x = CROSS_STREET_NAME, y =  Num, fill = Type)) +
+   geom_col(position = "dodge") +
+  ggtitle("Safest NYC intersection") +
+  theme(axis.text.x  = element_text(angle = 45),
+        text = element_text(size = 15, hjust=1.05, vjust = 1.1, face = "bold"))
+```
+
+#Q2
+Which type of vehicles (pickup truck, passenger, taxi, etc.) most frequently caused a collision?
+```{r}
+q2.1 <- nypd.vechicle %>%
+  rename(VEHICLE_TYPE = VEHICLE_TYPE_CODE_1) %>%
+  group_by(VEHICLE_TYPE) %>%
+  summarise(count = n()) %>%
+  mutate(Type = "VEHICLE_TYPE_CODE_1")
+  
+q2.2 <- nypd.vechicle %>%
+  rename(VEHICLE_TYPE = VEHICLE_TYPE_CODE_2) %>%
+  group_by(VEHICLE_TYPE) %>%
+  summarise(count = n()) %>%
+  mutate(Type = "VEHICLE_TYPE_CODE_2")
+
+q2 <- union_all(q2.1, q2.2) %>%
+  filter(!VEHICLE_TYPE %in% c("UNKNOWN", "OTHER", NA)) %>%
+  group_by(Type) %>%
+  arrange(-count) %>%
+  top_n(10,count)
+knitr::kable(q2, caption = "10 most common vehicles involved in collisions")
+
+ggplot(data = q2,
+       aes(x = VEHICLE_TYPE, y =  count, fill = Type)) +
+   geom_col(position = "stack") +
+  ggtitle("10 most common vehicles involved in collisionsn") +
+  theme(axis.text.x  = element_text(angle = 45),
+        text = element_text(size = 12, hjust=1.05, vjust = 1.1, face = "bold"))
+```
+
+#Q3
+What are the most popular contributing factors that led to a collision and is there a certain type of vehicle and/or area of NY associated with them?
+```{r}
+q3.1 <- nypd.vechicle %>%
+  rename(CONTRIBUTING_FACTOR = CONTRIBUTING_FACTOR_VEHICLE_1) %>%
+  group_by(CONTRIBUTING_FACTOR) %>%
+  summarise(count = n()) %>%
+  mutate(Type = "CONTRIBUTING_FACTOR_VEHICLE_1")
+  
+q3.2 <- nypd.vechicle %>%
+  rename(CONTRIBUTING_FACTOR = CONTRIBUTING_FACTOR_VEHICLE_2) %>%
+  group_by(CONTRIBUTING_FACTOR) %>%
+  summarise(count = n()) %>%
+  mutate(Type = "CONTRIBUTING_FACTOR_VEHICLE_2")
+
+q3 <- union_all(q3.1, q3.2) %>%
+  filter(!CONTRIBUTING_FACTOR %in% c("UNKNOWN", "Unspecified", NA)) %>%
+  group_by(Type) %>%
+  arrange(-count) %>%
+  top_n(10,count)
+knitr::kable(q3, caption = "10 most common factors contributing to collisions")
+
+ggplot(data = q3,
+       aes(x = CONTRIBUTING_FACTOR, y =  count, fill = Type)) +
+   geom_col(position = "stack") +
+  ggtitle("10 most common factors contributing to collisions") +
+  theme(axis.text.x  = element_text(angle = 45),
+        text = element_text(size = 12, hjust=1.05, vjust = 1.1, face = "bold"))
+
+```
+
+#Q4
+What is the probability that people were injured or killed from the collision?
+```{r}
+q4 <- nypd.vechicle %>%
+  mutate(Injured_or_Killed = NUMBER_OF_PERSONS_INJURED + NUMBER_OF_PEDESTRIANS_INJURED + NUMBER_OF_CYCLIST_INJURED + NUMBER_OF_MOTORIST_INJURED +NUMBER_OF_PERSONS_KILLED + NUMBER_OF_PEDESTRIANS_KILLED + NUMBER_OF_CYCLIST_KILLED + NUMBER_OF_MOTORIST_KILLED
+  ) %>%
+  mutate(Injured_or_Killed_Yes = ifelse(Injured_or_Killed > 0, 1, 0))
+
+prop <- mean(q4$Injured_or_Killed_Yes)
+knitr::kable(data.frame(prop),
+             caption = "The probability that people were injured or killed from the collision")
+
+```
+
+#Q5
+Are there certain time periods that the collision occured more frequently?
+```{r}
+# 30 minute
+require(lubridate)
+q5.1 <- nypd.vechicle %>%
+  group_by(TIME) %>%
+  summarise(n = n()) %>%
+  mutate(time = hms(TIME),
+         time = hour(time)*3600 + minute(time)*60 + second(time),
+         times = ceiling(time/7200),
+         time.end = time/7200
+         )
+
+q5.interval <- q5.1 %>%
+  filter(times == time.end) %>%
+  union_all(q5.1 %>% top_n(1)) %>%
+  select(times, TIME)
+
+q5.interval <- q5.interval %>%
+  rename(begin.time = TIME) %>%
+  inner_join(
+    q5.interval %>%
+      rename(end.time = TIME) %>%
+  mutate(times = times - 1) 
+  )
+
+
+q5.2 <- q5.1 %>%
+  group_by(times) %>%
+  summarise(n = sum(n)) %>%
+  inner_join(q5.interval) %>%
+  arrange(-n) %>% 
+  mutate(happn.times = n) %>%
+  select(begin.time, end.time, happn.times) %>%
+  mutate(time.interval = paste0(begin.time, "->", end.time)) %>%
+  arrange(begin.time)
+
+knitr::kable(q5.2, caption = "Most frequent half-hour intervals for collisions to occur")
+ggplot(data = q5.2,
+       aes(x = time.interval, y =  happn.times, fill = time.interval)) +
+   geom_col(position = "stack") +
+  ggtitle("Time Interval of the Crash") +
+    theme(axis.text.x  = element_text(angle = 65),
+        text = element_text(hjust=1.05, vjust = 1.1, size = 10, face = "bold"),
+        legend.position="none")
+```
+
+

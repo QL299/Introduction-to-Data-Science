@@ -1,0 +1,267 @@
+---
+title: "Technical results"
+author: "Amanda Liu, Michael DeBello, Zachary Dickson"
+date:
+output: html_document
+---
+
+
+```{r}
+require(readr)
+require(dplyr)
+require(stringr)
+require(zipcode)
+require(tidyverse)
+require(ggmap)
+require(lubridate)
+require(viridis)
+require(ggthemes)
+require(plotly)
+require(reshape2)
+nypd.vehicle <- read_csv("NYPD_Motor_Vehicle_Collisions.csv", col_names = T)
+summary(nypd.vehicle)
+```
+
+
+#1) The most dangerous/safest intersections in NYC
+
+First, we mutate two new variables Num_Injured and Num_Killed which are the sum of all injured or killed people (people in the vehicles, pedestrians, cyclists, motorists) and then group them by cross street. We then summarise by number of accidents, number of injuries and number of deaths for each of the cross streets.
+```{r}
+colnames(nypd.vehicle) <- str_replace_all(colnames(nypd.vehicle), " ", "_")
+q1 <- nypd.vehicle %>% 
+  mutate(num = 1,
+         Num_Injured = NUMBER_OF_PERSONS_INJURED + NUMBER_OF_PEDESTRIANS_INJURED + NUMBER_OF_CYCLIST_INJURED + NUMBER_OF_MOTORIST_INJURED,
+         Num_Killed = NUMBER_OF_PERSONS_KILLED + NUMBER_OF_PEDESTRIANS_KILLED + NUMBER_OF_CYCLIST_KILLED + NUMBER_OF_MOTORIST_KILLED
+         ) %>%
+  filter(!is.na(CROSS_STREET_NAME)) %>%
+  group_by(CROSS_STREET_NAME) %>%
+  summarise(Number_of_Accidents = n(), 
+            Num_Injured = sum(Num_Injured),
+            Num_Killed = sum(Num_Killed))
+```
+
+We use three different criteria to determine the most dangerous/safest intersections based on Number_of_Accidents, Num_Injured, and Num_Killed. 3rd ave was the most dangerous in terms of accidents and Broadway in terms of number injured and killed. We created tables for the safest and most dangerous intersections, using max of accidents and min of accidents, respectively. Non-busy places such as precincts have the lowest number of non-zero accidents. 
+```{r}
+knitr::kable(q1[q1$Number_of_Accidents == max(q1$Number_of_Accidents), ], 
+             caption = "Most dangerous NYC intersections")
+knitr::kable(q1[q1$Num_Injured == max(q1$Num_Injured), ], 
+             caption = "Most dangerous NYC intersections")
+knitr::kable(q1[q1$Num_Killed == max(q1$Num_Killed), ], 
+             caption = "Most dangerous NYC intersections")
+
+safe <- q1[q1$Number_of_Accidents == min(q1$Number_of_Accidents) & q1$Num_Killed == 0 &
+              q1$Num_Injured == 0,]
+knitr::kable(head(safe), caption = "Safest NYC intersections")
+```
+
+We then made 2 bar graphs out of this to plot the top 5 most dangerous and safest NYC cross streets, each broken down into 3 bars by Number_of_Accidents, Num_Injured, and Num_Killed. We did this through the use of gather and dodge positioning.
+```{r}
+ggplot(data = q1 %>% arrange(-Number_of_Accidents) %>% top_n(5,Number_of_Accidents) %>% 
+         gather("Number_of_Accidents", "Num_Injured", "Num_Killed",key = Type, value = Amount),
+       aes(x = CROSS_STREET_NAME, y =  Amount, fill = Type)) +
+   geom_col(position = "dodge") +
+  ggtitle("Most dangerous NYC intersections") + xlab("Cross street") + ylab("number") +
+  theme(axis.text.x  = element_text(angle = 0),
+        text = element_text(size = 10, hjust=0.5 , vjust = 1, face = "bold"))
+```
+```
+From the plot, we can direcly find that the intersection which has the greatest number of injured people is Broadway and the one which has the greatest number of accidents is 3 Avenue, but the number of killed people is hard to see because of its scale relative to the accident and injured quantity. If you look closely though, Broadway definitely has the thickest and most visible green mark for number killed.
+```
+```{r}
+ggplot(data = q1 %>% arrange(Number_of_Accidents)  %>% head(5) %>% 
+         gather("Number_of_Accidents", "Num_Injured", "Num_Killed",key = Type, value = Amount),
+       aes(x = CROSS_STREET_NAME, y =  Amount, fill = Type)) +
+   geom_col(position = "dodge") +
+  ggtitle("Safest NYC intersections") + xlab("Cross street") + ylab("number") +
+  theme(axis.text.x  = element_text(angle = 0),
+        text = element_text(size = 10, hjust=0.5, vjust = 1, face = "bold"))
+```
+```
+From the plot, we can direcly find that the intersections which have the least number of injured people is 0, 043 PCT and 1 Avenue, and all of the top 5 safest intersections have "1" for number of accidents and "0" for the number of killed people.
+```
+
+#2) Distribution of killed people based on the map of NYC
+From the plot of the most dangerous intersections of NYC, we noticed that the number of killed people is to small to see from the plot. We use ggmap to get the google map of NYC and figure out the distribution of people killed based on the map of NYC and utilizing the latitude and longitude coordinates. We created a data frame that gave the lat. and long. for each accident in which someone was killed, by omitting ones in which no one was killed with filter.
+```{r}
+colnames(nypd.vehicle) <- str_replace_all(colnames(nypd.vehicle), " ", "_")
+nypd <- nypd.vehicle %>%
+  select(LATITUDE,LONGITUDE,NUMBER_OF_PERSONS_KILLED) %>% 
+  gather(type,value,3:3) %>%
+  na.omit() %>% 
+  group_by(LATITUDE,LONGITUDE,type) %>% 
+  summarise(total=sum(value,na.rm=T)) %>% 
+  filter(total!=0)
+nypd
+
+nyc <- get_map("new york",zoom=11)
+map_killed <- ggmap(nyc)+geom_point(data=subset(nypd,type=="NUMBER_OF_PERSONS_KILLED"), 
+             aes(x=LONGITUDE, y=LATITUDE, colour=total),size= 2,alpha=0.2) +
+  ggtitle("Distribution of deaths")+xlab("Longitude")+ylab("Latitude") + 
+  scale_color_gradient(low = "red",  high = "black")
+map_killed
+```
+```
+From the map, persons who got killed in the collisions are relatively few compared to persons who got injured. Most of the collisions involving death of people took place in Manhattan, Brooklyn and Queens and then Bronx, while Staten island has the least number of death of people.
+```
+
+#3) The probability that people were injured or killed from the collision
+We combined the number of people injured and the number of people killed to figure out the proportion of crashes that resulted in an injury or death.  We got the proportion by taking the mean of the conditional statement of whether someone got injured or killed.
+```{r}
+q4 <- nypd.vehicle %>%
+  mutate(Injured_or_Killed = NUMBER_OF_PERSONS_INJURED + NUMBER_OF_PEDESTRIANS_INJURED + NUMBER_OF_CYCLIST_INJURED + NUMBER_OF_MOTORIST_INJURED +NUMBER_OF_PERSONS_KILLED + NUMBER_OF_PEDESTRIANS_KILLED + NUMBER_OF_CYCLIST_KILLED + NUMBER_OF_MOTORIST_KILLED
+  ) %>%
+  mutate(Injured_or_Killed_Yes = ifelse(Injured_or_Killed > 0, 1, 0))
+
+
+prop <- mean(q4$Injured_or_Killed_Yes)
+prop
+
+```
+```
+It was around 19% of people that get injured or killed per crash.
+```
+
+#4) Distribution of collisions by boroughs
+In order to look at how the average number of accidents varied over time within each of the 5 boroughs throughout the years of the dataset, we filtered the data by the borough variable and then used group_by to organize by the date of the year and borough and summarised an average accidents variable that was the mean of the number of accidents per month in that borough at each of those moments in time. We did this with a geom_line to track the trends and ebbs and flows for each and grouped by the date it occured and the borough it occurred in and summarise the average collisions per month for those groups.
+```{r fig.width=10, fig.asp=0.6}
+nypd.vehicle$DATE <- mdy(nypd.vehicle$DATE)
+borough.accident <- nypd.vehicle %>% filter(BOROUGH!="") %>%  group_by(DATE,BOROUGH) %>% summarise(Average_CollisionsPerMonth = mean(n())) %>% na.omit()
+
+ggplot(data=borough.accident,aes(x=DATE, y=Average_CollisionsPerMonth, colour=BOROUGH, group=BOROUGH)) + geom_line()+geom_point(size=0.5,shape=1) + ggtitle("Average Accidents per month by Borough")+geom_text(aes(label=ifelse(Average_CollisionsPerMonth>180,Average_CollisionsPerMonth,"")), size=2,hjust=1.5)
+```
+```
+The result seems quite obvious.
+The overall ranking of the boroughs from the most accidents happened to the least is:
+1. Brooklyn
+2. Queens
+3. Manhattan
+4. Bronx
+5. Staten Island
+```
+
+#5) Type of vehicles
+In order to find the type of vehicles (pickup truck, passenger, taxi, etc.) most frequently caused a collision, we add the two vehicle types together and sort the 10 most common types of vehicles based on the number of collisions. We did this by creating a union of vehicle_1 and vehicle_2 from q5.1 and q5.2, as there are usually 2 vehicles involved in a collision. 
+```{r fig.width=8, fig.asp=0.5}
+q5.1 <- nypd.vehicle %>%
+  rename(VEHICLE_TYPE = VEHICLE_TYPE_CODE_1) %>%
+  group_by(VEHICLE_TYPE) %>%
+  summarise(Number_of_Accidents = n()) %>%
+  mutate(Type = "VEHICLE_TYPE_CODE_1")
+  
+q5.2 <- nypd.vehicle %>%
+  rename(VEHICLE_TYPE = VEHICLE_TYPE_CODE_2) %>%
+  group_by(VEHICLE_TYPE) %>%
+  summarise(Number_of_Accidents = n()) %>%
+  mutate(Type = "VEHICLE_TYPE_CODE_2")
+
+q2 <- union_all(q5.1, q5.2) %>%
+  filter(!VEHICLE_TYPE %in% c("UNKNOWN", "OTHER", NA)) %>%
+  group_by(Type) %>%
+  arrange(-Number_of_Accidents) %>%
+  top_n(10,Number_of_Accidents)
+knitr::kable(q2, caption = "Number of Collisions by Vehicle Type")
+```
+
+We then created a bar graph that illustrated the 10 most frequent car types that got into a collision, broken down by the 2 vehicle codes and how many collisions there were involving those vehicle types.
+```{r}
+ggplot(data = q2,
+       aes(x = VEHICLE_TYPE, y =  Number_of_Accidents, fill = Type)) +
+   geom_col(position = "stack") +
+  ggtitle("Number of Collisions by Vehicle Type") + ylab("Number of collisions") + xlab("Vehicle_Type") +
+  theme(axis.text.x  = element_text(angle = 0),
+        text = element_text(size = 10, hjust=0.5, vjust = 1, face = "bold")) + coord_flip()
+
+```
+```
+From the plot, passanger vehicles are involved in much more accidents than any other vehicles. Sport utility/station wagon come in second, involved in less accidents than the passanger vehicles but still a lot relative to even the third place vehicle. The rest seems similar after taxis.
+```
+
+#6) The most popular contributing factors
+Then we try to find the most common contributing factors leading to a collision.
+We group together the factors similar to what we did with the vehicle types for vehicle 1 and vehicle 2 in the accident and show the top ten factors that led to a crash.
+```{r fig.width=8, fig.asp=0.5}
+q3.1 <- nypd.vehicle %>%
+  rename(CONTRIBUTING_FACTOR = CONTRIBUTING_FACTOR_VEHICLE_1) %>%
+  group_by(CONTRIBUTING_FACTOR) %>%
+  summarise(Number_of_Accidents = n()) %>%
+  mutate(Type = "CONTRIBUTING_FACTOR_VEHICLE_1")
+  
+q3.2 <- nypd.vehicle %>%
+  rename(CONTRIBUTING_FACTOR = CONTRIBUTING_FACTOR_VEHICLE_2) %>%
+  group_by(CONTRIBUTING_FACTOR) %>%
+  summarise(Number_of_Accidents = n()) %>%
+  mutate(Type = "CONTRIBUTING_FACTOR_VEHICLE_2")
+
+q3 <- union_all(q3.1, q3.2) %>%
+  filter(!CONTRIBUTING_FACTOR %in% c("UNKNOWN", "Unspecified", NA)) %>%
+  group_by(Type) %>%
+  arrange(-Number_of_Accidents) %>%
+  top_n(10,Number_of_Accidents)
+knitr::kable(q3, caption = "Number of Collisions for each Contributing Factor")
+```
+
+We then created a bar graph that illustrated the 10 most popular contributing factors that got into a collision, broken down by the 2 vehicle codes and the amount of crashes these factors were involved in.
+```{r}
+ggplot(data = q3,
+       aes(x = CONTRIBUTING_FACTOR, y =  Number_of_Accidents, fill = Type)) +
+   geom_col(position = "stack") +
+  ggtitle("Number of Collisions by Contributing Factor") + xlab("Contributing Factor") +
+  theme(axis.text.x  = element_text(angle = 0),
+        text = element_text(size = 10, hjust=0.5, vjust = 1, face = "bold")) + coord_flip()
+```
+```
+From the result, driver inattention/distraction is the most common contributing factors that caused collisions. This is because driver inattention can be looking off the road for a second, texting and driving, eating, etc. We would think failure to yield the right of way would be more common in a city where everyone is in a hurry.
+```
+
+
+#7) Time-interval
+In order to figure out certain time periods that the collision occured more frequently, we split one day into 24 hours and count the number of collisions happened in each time interval. 
+```{r fig.width=8, fig.asp=0.5}
+# 60 minute
+q5.1 <- nypd.vehicle %>%
+  group_by(TIME) %>%
+  summarise(n = n()) %>%
+  mutate(time = hms(TIME),
+         time = hour(time)*3600 + minute(time)*60 + second(time),
+         times = ceiling(time/3600),
+         time.end = time/3600
+         )
+
+q5.interval <- q5.1 %>%
+  filter(times == time.end) %>%
+  union_all(q5.1 %>% top_n(1)) %>%
+  select(times, TIME)
+
+q5.interval <- q5.interval %>%
+  rename(start_time = TIME) %>%
+  inner_join(
+    q5.interval %>%
+      rename(end_time = TIME) %>%
+  mutate(times = times - 1) 
+  )
+q5.2 <- q5.1 %>%
+  group_by(times) %>%
+  summarise(n = sum(n)) %>%
+  inner_join(q5.interval) %>%
+  arrange(-n) %>% 
+  mutate(Collisions = n) %>%
+  select(start_time, end_time, Collisions) %>%
+  mutate(time_interval = paste0(start_time, "->", end_time)) %>%
+  arrange(start_time)
+
+knitr::kable(q5.2, caption = "Most frequent 1-hour intervals for collisions to occur")
+
+
+
+ggplot(data = q5.2,
+       aes(x = seq(0,23,1), y =  Collisions, fill = time_interval)) +
+   geom_col(position = "stack") +
+  ggtitle("Collisions by Hour") + xlab("Time(hrs)") + ylab("Number of collisions")+
+    theme(axis.text.x  = element_text(angle = 0),
+        text = element_text(hjust=0.5, vjust = 1, size = 10, face = "bold"),
+        legend.position="none")
+```
+
+```
+From the plot, we found that the number of accidents rises suddenly between 8am and 9am and continues to rise through 3 pm. The maximum hour in terms of accidents was at 5pm.
+```

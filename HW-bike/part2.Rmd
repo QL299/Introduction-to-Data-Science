@@ -1,0 +1,87 @@
+---
+title: 'Part 2: predictive modeling'
+output: html_document
+---
+#Amanda Liu PID:730042603
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,warning = FALSE, message = FALSE)
+```
+
+
+__Part II__
+
+First, load the data sets:
+
+```{r}
+library(tidyverse)
+
+# data from 2011
+hour11 <- read_csv('https://raw.githubusercontent.com/idc9/stor390/master/data/bikes_2011.csv')
+
+
+# x data from 2012
+hour12_x <- read_csv('https://raw.githubusercontent.com/idc9/stor390/master/data/bikes_12_x.csv')
+```
+
+
+Split data into train and test sets,  also, before modeling, we need to only use the variables which shown in the data 2012, so we need to drop variables such as 'casual' and transform some variables such as :
+
+
+```{r}
+set.seed(1)
+use_variables = intersect(colnames(hour11), colnames( hour12_x))
+hour11 = data.frame(hour11)
+hour12_x = data.frame(hour12_x)
+hour11 = hour11[,c(use_variables,"cnt")]
+hour11 = hour11[, -c(2,4)]
+hour12_x = hour12_x[,-c(2,4)]
+  
+for(i in c(2,3,4,6)) hour12_x[,i] = factor(hour12_x[,i])
+for(i in c(2,3,4,6)) hour11[,i] = factor(hour11[,i])
+
+train_index = sample(1:nrow(hour11), 0.8*nrow(hour11))
+train = hour11[train_index,  ]
+test = hour11[-train_index,  ]
+```
+
+Then we use two models, the first model is the full model with all of the predictors, for simple, i do not include high order terms such as interaction terms and quadratic terms, the second model is using BIC model selection to select from the full model, i train them on train set and test on test set and compare RMSE:
+
+
+```{r}
+full = lm(cnt ~ . - instant, data = train)
+pred.full = predict(full, test)
+pred.full = ifelse(pred.full < 0, 0, pred.full)
+rmse1 = sqrt(mean((pred.full - test$cnt )^2))
+rmse1
+
+back = step(full, direction = "backward",k = log(nrow(train)), trace =0)
+
+
+pred.back = predict(back, test)
+pred.back = ifelse(pred.back < 0, 0,pred.back)
+
+rmse2 = sqrt(mean((pred.back - test$cnt )^2))
+rmse2
+
+```
+
+Note that, we replace negative values with 0s, as it can be found that using full model we obtain a lower RMSE, so we use full model to make predictions on 2012 data:
+
+
+```{r}
+Nfull = lm(cnt ~ . - instant, data = hour11)
+# get predictions for 2012 data
+pred_12 <- predict(full, newdata = hour12_x)
+pred_12 = ifelse(pred_12  < 0, 0,pred_12 )
+# add predictions to 2012 data frame
+hour12_x <- hour12_x %>% 
+            mutate(cnt_pred=pred_12)
+
+# save the predictions
+write_csv(hour12_x, 'bike_predictions_2012_ONYEN.csv')
+```
+
+
+
+

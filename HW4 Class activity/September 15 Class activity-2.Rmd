@@ -1,0 +1,208 @@
+---
+title: "Class Exercise"
+author: "Robin Cunningham"
+date: "September 15, 2017"
+output:
+  html_document:
+    theme: cosmo
+    toc: yes
+    toc_float: yes
+---
+# Amanda Liu PID:730042603
+# Qianhe Peng PID:730003665
+
+<!-- hi im a comment -->
+
+# Introduction
+
+We have spent the first few weeks of the course visualizing and transforming data. Now we will start learning to "Wrangle" data using the tidyverse. This involves obtaining data from various sources and cleaning it up or 'tidying' to get it into standard usable form. Load the tidyverse before starting.
+```{r}
+library(tidyverse)
+```
+
+<br><br><br>
+**Chapter 10 - Tibbles**
+<br>
+1. The standard table format in R has been 'data frames' for some time. We have already worked with a couple. For instance, run
+```{r, eval = FALSE} 
+class(mtcars)
+print(mtcars)
+```
+You can tell that mtcars is a data frame and note how it prints. 
+
+A) Convert `mtcars` to a tibble using `as_tibble` and use the same two commands. Tibbles are data_frames with slightly different rules. One is that they print differently. 
+
+```{r}
+as_tibble(mtcars)
+```
+
+
+From the class of a tibble, you can see where they get their name. Describe below how tibbles print differently from data frames using the mtcars example.
+```
+The tibble only shows the first 10 rows,and all the columns that fit on screen. Also, data frames print out the exact namee of each vehicle, while tibble does not.
+```
+
+B) If your screen is small, the print of a tibble will only include as many variables as can fit on the screen. Make your screen pretty small and print your tibble version of mtcars.
+```{r}
+print(as_tibble(mtcars))
+```
+
+However, even when the screen won't fit all the variables, you might want to print them all. Try
+```{r, eval = FALSE} 
+print(nycflights13::flights, width=Inf)
+```
+
+Trying to make sense of the output makes clear why the standard is to only go to screen width. A better option is `View()`. Try it on flights:
+```
+View(flights)
+```
+Nice, huh?
+
+
+<br><br>
+2. **Creating Tibbles** from scratch: You can create a tibble handily by defining each of the columns by name in a tibble command. For example:
+```{r}
+dolphin <- tibble(
+  x = 1:5, 
+  y = 1, 
+  z = x ^ 2 + y,
+  w = sample(letters,5)
+)
+```
+A) Look at dolphin and decide what `sample(letters)` is doing.
+```
+It randomly chooses5 letters in the "w" column.
+```
+
+B) Create a tibble where 
+
+*Column 1* is called "rand"" and is a random draw from a uniform distribution on [0,2]
+
+*Column 2* is called "cat" and consists of the sequence of integers from 10 to 20.
+
+*Column 3* called "test_score" and is a random draw from the integers between 1 and 100. (this may take a bit of work)
+
+```{r}
+tibble(
+  rand = runif(11, 0, 2),
+  cat = seq(10:20),
+  test_score = sample(1:100, 11)
+)
+```
+
+C) One way tibbles are different than data_frames is that they can take non-standard symbols as names. Not just names that can be R variables. For example,
+```{r}
+tb <- tibble(
+  `:)` = "smile", 
+  ` ` = "space",
+  `2000` = "number"
+)
+```
+It's awkward though, because you have to use the tickmarks whenever you call on the variables by name. (Personally, I would avoid this without a compelling reason) I have put an exercise with this kind of file naming below, but usually, we will just use R-acceptable variable names as the names of columns/variables. Practice referring to non-syntactic names in the following data frame by:
+
+i. Extracting the variable called 1.
+ii. Plotting a scatterplot of 1 vs 2.
+iii. Creating a new column called 3 which is 2 divided by 1.
+iv. Renaming the columns to one, two and three.
+```{r, eval=TRUE}
+annoying <- tibble(
+  `1` = 1:10,
+  `2` = `1` * 2 + rnorm(length(`1`))
+)
+annoying$`1`
+ggplot(data = annoying) + geom_point(mapping = aes(x= `1`, y = `2`))
+annoying <- annoying %>% mutate(`3` = `2` / `1`)
+annoying %>% transmute( one = `1`, two = `2`, three = `3`)
+annoying
+```
+
+<br><br>
+3. **Subsetting tibbles**-
+A) You can pull out a single variable from a tibble using `$`. For example, look at `dolphin$z`. You may be thinking, 'wait a minute, I already know how to pull out a column using select'. Compare the results of pulling out `z` using select and $ and describe the difference. You may find the `class` command  useful for this
+```{r}
+dolphin $ z
+class(dolphin$z)
+
+select(dolphin, z)
+class(select(dolphin, z))
+```
+```
+"$" prints out like a sequence, while "select()" prints out as a tibble.
+```
+
+B) Using the subsetting command '[[]]', you can pick out variables using either the variable name or the column number. Grab the variable `z` from `dolphin` both ways using the subsetting symbol '[[]]'. Compare the results of the following commands, note the difference in output.
+```{r, eval = TRUE}
+dolphin[,3]
+dolphin[[3]] # and
+dolphin[3,]
+dolphin[["z"]]
+dolphin[,"z"]
+```
+Summarize the different outputs in a textbox.
+```
+"dolphin[,3]" prints out the third column as a tibble.
+"dolphin[[3]]" also prints out the third column but in a form of sequence.
+"dolphin[3,]" prints out the third row.
+"dolphin[["z"]]" prints out the column "z" horizontally in a form of sequence, which is the same as "dolphin[[3]]".
+"dolphin[,"z"]" prints out the column "z" as a tibble, which is the same as "dolphin[,3]".
+
+```
+C) Subsetting commands are important and give a quick way to find rows or columns or even single entry in a table. Write the appropriate command to grab the 3rd observation in the `w` column of `dolphin`
+```{r}
+dolphin[3,"w"]
+```
+
+D) Give Section 10.5 Exercise 2 a try.
+```{r}
+df <- data.frame(abc = 1, xyz = "a")
+df$x
+df[, "xyz"]
+df[, c("abc", "xyz")]
+
+df1 <- as_tibble(df)
+df1$x
+df1[, "xyz"]
+df1[, c("abc", "xyz")]
+```
+
+
+E) What does the following line do? (See .rmd file for the commands, you can't see them in this output.)
+<br><br><br>
+**Note** This appears to mean at least some html commands work in RMarkdown documents.
+```
+<br> inserts a single line break.
+Thus, <br><br><br> means three line breaks.
+```
+4. Run the following code and for each variable, write a sentence to your (hypothetical) younger sibling describing what each variable is in the resulting tibble.
+```{r, eval=TRUE}
+
+tibble(
+  a = lubridate::now() + runif(1e3) * 86400,
+  b = lubridate::today() + runif(1e3) * 30,
+  c = 1:1e3,
+  d = runif(1e3),
+  e = sample(letters, 1e3, replace = TRUE)
+)
+```
+```
+All variables is 1 column and 1000 rows.
+Column "a" demonstrates the time in 24h.
+Column "b" demonstrates the date in 2017.
+Column "c" demonstrates the consecutive interger from 1 to 1000
+Column "d" demonstrates the 1000 random number in [0,1]
+Column "e" demonstrates the 1000 randomly choosen letters.
+
+```
+
+```
+
+<br><br>
+5. **R Projects** - Enlighten your instructor. I have read carefully about R projects in three different sources and I think I have the idea, but I need you to verify it with another in the class. 
+
+A) Put the code defining the tibble `dolphin` into an R-script and put the R-script in a new working directory. Call `dolphin` by another name though (be clever, you can do it.)
+
+B) Create a new R-Project and put it in the new working directory. 
+
+C) Now zip up the entire directory and send it to your frenemy. See if they can open the project and run the script.
+
+D) We will report on the results and I will tell you what I think R-Project is really for and you can help clarify my understanding.

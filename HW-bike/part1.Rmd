@@ -1,0 +1,146 @@
+---
+title: 'Part 1: exploratory analysis'
+output: html_document
+---
+#Amanda Liu PID:730042603
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,warning = FALSE, message = FALSE)
+```
+
+__Part I__
+
+
+```{r, warning=FALSE, message=F, eval=T}
+library(tidyverse)
+
+# data from 2011
+hour11 <- read_csv('https://raw.githubusercontent.com/idc9/stor390/master/data/bikes_2011.csv')
+
+
+# x data from 2012
+hour12_x <- read_csv('https://raw.githubusercontent.com/idc9/stor390/master/data/bikes_12_x.csv')
+
+```
+
+
+## EDA plots
+
+
+```{r}
+hour11 %>% 
+    ggplot() +
+    geom_jitter(aes(x=hr, y=cnt), width=.2, height=0, size=.3) +
+    ggtitle('Figure 1') +
+    labs(x = 'hour', y = 'rental count')
+```
+
+Figure 1 shows bike rental counts per hour for each hour in 2011. As might be expected the rental traffic is higher during the day than at night. There appear to be two traffic spikes: one in the morning (around 8am) and one in the evening (around 5pm). These spikes might suggest that people use Capital Bike rentals to get to and from work. Looking carefully at the morning spike ther appears to be two clusters: one with higher traffic, one with lower traffic. It could be worthwhile to determine what is driving this possible difference in bike rental behavior in the morning.
+
+```{r}
+hour11 %>% 
+    ggplot() +
+    geom_jitter(aes(x=season, y=cnt), width=.2, height=0, size=.3) +
+    ggtitle('Figure 2') +
+    labs(x = 'season', y = 'rental count')
+```
+
+Figure 2 shows bike rental counts per hour for each season in 2011. The rental traffic is higher during season 2, 3 and 4, and they are very close in season 2, 3, 4. But in season 1, ther rental counts per hour is much fewer, the gap is significant.
+
+
+```{r}
+hour11 %>% 
+    ggplot() +
+    geom_jitter(aes(x=mnth, y=cnt), width=.2, height=0, size=.3) +
+    ggtitle('Figure 3') +
+    labs(x = 'month', y = 'rental count')
+```
+
+Figure 3 shows bike rental counts per hour for each month in 2011. The rental traffic is much higher in months from month 4 to month 12, and specially, the highest peaks are around months 6,7,8. overall, there is upward trend from month 1 to 8 and then decline until month 12, also, the months 1 to 3 show much fewer counts compared with other months in the year.
+
+
+```{r}
+hour11 %>% 
+    ggplot() +
+    geom_boxplot(aes(x=factor(holiday), y=cnt), width=.2,  size=.3) +
+    ggtitle('Figure 4') +
+    labs(x = 'holiday', y = 'rental count')
+```
+
+Figure 4 shows bike rental counts for holidays vs non-holidays in 2011. The rental traffic is a little higher in average in non-holidays than that in holidays as people must go to work and use bike in non-holidays, so it is reasonable.
+
+
+```{r}
+hour11 %>% 
+    ggplot() +
+    geom_boxplot(aes(x=factor(weekday), y=cnt), width=.2, size=.3) +
+    ggtitle('Figure 5') +
+    labs(x = 'weekday', y = 'rental count')
+```
+
+Figure 5 shows bike rental counts for weekdays are different in average across the 7 different weekdays, it appears that the average counts in  weekday 0  is lowest, and in weekday 5 is highest, also, the weekdays 1 to 5 have higher average counts than that for weekday 6. 
+
+
+
+
+```{r}
+hour11 %>% 
+    ggplot() +
+    geom_boxplot(aes(x=factor(weathersit), y=cnt), width=.2, size=.3) +
+    ggtitle('Figure 6') +
+    labs(x = 'weather', y = 'rental count')
+```
+
+Figure 6 shows bike rental counts showing a clearly decline trend in the plot, the average is highest in weather 1, and the weather 4 has too few data to show, but for weather in 3, it is much lower than weather 1 and 2.
+
+
+```{r}
+hour11 %>% 
+    ggplot() +
+    geom_point(aes(x= temp, cnt)) +
+    ggtitle('Figure 7') +
+    labs(x = 'temprature', y = 'rental count')
+```
+
+Figure 7 shows there there is obviously upward trend formed by the points in the plot, thus, there must be a linear relationship between temprature and rental counts, with increasing of temperature there is increasing of rental counts.
+
+
+
+
+```{r}
+hour11 %>% 
+    ggplot() +
+    geom_point(aes(x= registered, cnt)) +
+    ggtitle('Figure 8') +
+    labs(x = 'registered', y = 'rental count')
+```
+
+Figure 8 shows there is obviously upward trend formed by the points in the plot overall, so there must be linear relationship between them, but  the plot also shows there are appears to be two clusters, there are two lines formed by the points.
+
+
+
+```{r}
+hour11 %>% 
+    ggplot() +
+    geom_point(aes(x=  casual, cnt)) +
+    ggtitle('Figure 9') +
+    labs(x = 'causal', y = 'rental count')
+```
+
+Figure 9 shows there are obviously upward trend formed by these points in the plot overall, and there must be linear relationship between them, also, there are two clusters in the plot which appears to be strange.
+
+
+```{r}
+hour11 %>% 
+    ggplot() +
+    geom_boxplot(aes(x= factor( casual), cnt)) +
+    ggtitle('Figure 10') +
+    labs(x = 'hum', y = 'rental count')
+```
+
+Figure 10 shows there are obviously upward trend formed by these points in the plot, and there must be linear regressionship between them, and it waves in the beginning.
+
+
+
+
